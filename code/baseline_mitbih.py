@@ -5,18 +5,13 @@ from keras import optimizers, losses, activations, models
 from keras.callbacks import ModelCheckpoint, EarlyStopping, LearningRateScheduler, ReduceLROnPlateau
 from keras.layers import Dense, Input, Dropout, Convolution1D, MaxPool1D, GlobalMaxPool1D, GlobalAveragePooling1D, \
     concatenate
+
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, accuracy_score
+import os
 
+parent_dir = os.path.dirname(os.getcwd())
 
-df_train = pd.read_csv("../input/mitbih_train.csv", header=None)
-df_train = df_train.sample(frac=1)
-df_test = pd.read_csv("../input/mitbih_test.csv", header=None)
-
-Y = np.array(df_train[187].values).astype(np.int8)
-X = np.array(df_train[list(range(187))].values)[..., np.newaxis]
-
-Y_test = np.array(df_test[187].values).astype(np.int8)
-X_test = np.array(df_test[list(range(187))].values)[..., np.newaxis]
 
 
 def get_model():
@@ -50,23 +45,77 @@ def get_model():
     model.summary()
     return model
 
-model = get_model()
-file_path = "baseline_cnn_mitbih.h5"
-checkpoint = ModelCheckpoint(file_path, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
-early = EarlyStopping(monitor="val_acc", mode="max", patience=5, verbose=1)
-redonplat = ReduceLROnPlateau(monitor="val_acc", mode="max", patience=3, verbose=2)
-callbacks_list = [checkpoint, early, redonplat]  # early
 
-model.fit(X, Y, epochs=1000, verbose=2, callbacks=callbacks_list, validation_split=0.1)
-model.load_weights(file_path)
 
-pred_test = model.predict(X_test)
-pred_test = np.argmax(pred_test, axis=-1)
+print("Test accuracy score mitbih : %s "% acc)
 
-f1 = f1_score(Y_test, pred_test, average="macro")
+def load_mitbih_data():
+    df_train = pd.read_csv(parent_dir + os.sep + "data/input/mitbih_train.csv", header=None)
+    df_train = df_train.sample(frac=1)
+    df_test = pd.read_csv(parent_dir + os.sep + "data/input/mitbih_test.csv", header=None)
 
-print("Test f1 score : %s "% f1)
+    Y = np.array(df_train[187].values).astype(np.int8)
+    X = np.array(df_train[list(range(187))].values)[..., np.newaxis]
 
-acc = accuracy_score(Y_test, pred_test)
+    Y_test = np.array(df_test[187].values).astype(np.int8)
+    X_test = np.array(df_test[list(range(187))].values)[..., np.newaxis]
+    return X, X_test, Y, Y_test
 
-print("Test accuracy score : %s "% acc)
+def load_ptbdb_data():
+    df_1 = pd.read_csv(parent_dir + os.sep +  "data/input/ptbdb_normal.csv", header=None)
+    df_2 = pd.read_csv(parent_dir + os.sep +  "data/input/ptbdb_abnormal.csv", header=None)
+    df = pd.concat([df_1, df_2])
+
+    df_train, df_test = train_test_split(
+        df, test_size=0.2, random_state=1337, stratify=df[187])
+
+    Y = np.array(df_train[187].values).astype(np.int8)
+    X = np.array(df_train[list(range(187))].values)[..., np.newaxis]
+
+    Y_test = np.array(df_test[187].values).astype(np.int8)
+    X_test = np.array(df_test[list(range(187))].values)[..., np.newaxis]
+
+    return X, X_test, Y, Y_test
+
+
+if __name__ == '__main__':
+
+    X, X_test, Y, Y_test = load_mitbih_data()
+
+    model = get_model()
+    mit_file_path = "baseline_cnn_mitbih.h5"
+    checkpoint = ModelCheckpoint(mit_file_path, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
+    early = EarlyStopping(monitor="val_acc", mode="max", patience=5, verbose=1)
+    redonplat = ReduceLROnPlateau(monitor="val_acc", mode="max", patience=3, verbose=2)
+    callbacks_list = [checkpoint, early, redonplat]  # early
+
+    model.fit(X, Y, epochs=1000, verbose=2, callbacks=callbacks_list, validation_split=0.1)
+    model.load_weights(mit_file_path)
+
+    pred_test = model.predict(X_test)
+    pred_test = np.argmax(pred_test, axis=-1)
+
+    f1 = f1_score(Y_test, pred_test, average="macro")
+
+    print("Test f1 score mitbih : %s " % f1)
+
+    acc = accuracy_score(Y_test, pred_test)
+
+    X, X_test, Y, Y_test = load_ptbdb_data()
+
+    checkpoint = ModelCheckpoint(mit_file_path, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
+    early = EarlyStopping(monitor="val_acc", mode="max", patience=5, verbose=1)
+    redonplat = ReduceLROnPlateau(monitor="val_acc", mode="max", patience=3, verbose=2)
+    callbacks_list = [checkpoint, early, redonplat]  # early
+
+    model.fit(X, Y, epochs=1000, verbose=2, callbacks=callbacks_list, validation_split=0.1)
+    model.load_weights(mit_file_path)
+
+    pred_test = model.predict(X_test)
+    pred_test = np.argmax(pred_test, axis=-1)
+
+    f1 = f1_score(Y_test, pred_test, average="macro")
+
+    print("Test f1 score mitbih : %s " % f1)
+
+    acc = accuracy_score(Y_test, pred_test)
